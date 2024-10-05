@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Nette\Schema\Expect;
+use Nette\Schema\MergeMode;
 use Nette\Schema\Processor;
 use Tester\Assert;
 
@@ -522,5 +523,45 @@ test('getShape', function () {
 	Assert::equal(
 		['a' => Expect::int(), 'b' => Expect::string()],
 		Expect::structure(['a' => Expect::int(), 'b' => Expect::string()])->getShape(),
+	);
+});
+
+
+test('merge modes', function () {
+	$schema = Expect::structure([
+		'foo1' => Expect::structure([
+			'key' => Expect::string(),
+			0 => Expect::string(),
+		])->mergeMode(MergeMode::Replace),
+		'foo2' => Expect::structure([
+			'key' => Expect::string(),
+			0 => Expect::string(),
+		])->mergeMode(MergeMode::OverwriteKeys),
+		'foo3' => Expect::structure([
+			'key' => Expect::string(),
+			0 => Expect::string(),
+		])->mergeMode(MergeMode::AppendKeys)->otherItems('string'),
+	]);
+
+	$processor = new Processor;
+
+	Assert::equal(
+		(object) [
+			'foo1' => (object) [null, 'key' => 'new'],
+			'foo2' => (object) ['new', 'key' => 'new'],
+			'foo3' => (object) ['old', 'new', 'key' => 'new'],
+		],
+		$processor->processMultiple($schema, [
+			[
+				'foo1' => ['old', 'key' => '1'],
+				'foo2' => ['old', 'key' => '1'],
+				'foo3' => ['old', 'key' => '1'],
+			],
+			[
+				'foo1' => ['key' => 'new'],
+				'foo2' => ['new', 'key' => 'new'],
+				'foo3' => ['new', 'key' => 'new'],
+			],
+		]),
 	);
 });

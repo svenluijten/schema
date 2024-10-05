@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Nette\Schema\Expect;
 use Nette\Schema\Helpers;
+use Nette\Schema\MergeMode;
 use Nette\Schema\Processor;
 use Tester\Assert;
 
@@ -331,4 +332,35 @@ test('type[]', function () {
 	}, ['The item expects to be int[], array given.']);
 
 	Assert::same(['key' => 1], (new Processor)->process($schema, ['key' => 1]));
+});
+
+
+test('merge modes', function () {
+	$schema = Expect::structure([
+		'foo1' => Expect::array()->mergeMode(MergeMode::Replace),
+		'foo2' => Expect::array()->mergeMode(MergeMode::OverwriteKeys),
+		'foo3' => Expect::array()->mergeMode(MergeMode::AppendKeys),
+	]);
+
+	$processor = new Processor;
+
+	Assert::equal(
+		(object) [
+			'foo1' => ['key' => 'new'],
+			'foo2' => ['new', 'key' => 'new'],
+			'foo3' => ['old', 'new', 'key' => 'new'],
+		],
+		$processor->processMultiple($schema, [
+			[
+				'foo1' => ['old', 'key' => '1'],
+				'foo2' => ['old', 'key' => '1'],
+				'foo3' => ['old', 'key' => '1'],
+			],
+			[
+				'foo1' => ['key' => 'new'],
+				'foo2' => ['new', 'key' => 'new'],
+				'foo3' => ['new', 'key' => 'new'],
+			],
+		]),
+	);
 });
